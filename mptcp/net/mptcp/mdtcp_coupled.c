@@ -271,7 +271,7 @@ static void mdtcp_recalc_alpha(const struct sock *sk)
 {
 	const struct mptcp_cb *mpcb = tcp_sk(sk)->mpcb;
 	const struct sock *sub_sk;
-	int min_rtt = 0, can_send = 0;
+	int min_rtt = 1, can_send = 0;
         //,best_cwnd = 0;
 	u64  sum_denominator = 0, alpha = 1;
 
@@ -308,7 +308,7 @@ static void mdtcp_recalc_alpha(const struct sock *sk)
 
 		/* We need to look for the path, that provides the minimum RTT*/
 
-		if (min_rtt == 0 || sub_tp->srtt_us < min_rtt)
+		if (min_rtt == 1 || sub_tp->srtt_us < min_rtt)
 			min_rtt = sub_tp->srtt_us;
 	}
 
@@ -474,14 +474,14 @@ static void mdtcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
             }
           
 
-     /*old_cwnd = tp->snd_cwnd;
+     old_cwnd = tp->snd_cwnd;
      mdtcp_cong_avoid_ai(tp, snd_cwnd, acked);
 
      if (old_cwnd < tp->snd_cwnd && mpcb->cnt_established > 1)
 	   mdtcp_recalc_alpha(sk);
-    */
+    
 
-   
+   /*
     if (tp->snd_cwnd_cnt >= snd_cwnd) {
 		if (tp->snd_cwnd < tp->snd_cwnd_clamp) {
 			tp->snd_cwnd++;
@@ -492,7 +492,7 @@ static void mdtcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	} else {
 		tp->snd_cwnd_cnt++;
 	}
-     	
+     */	
   }
 
 static void mdtcp_cwnd_event(struct sock *sk, enum tcp_ca_event ev)
