@@ -82,24 +82,24 @@ MODULE_PARM_DESC(mdtcp_ai_scale, "scaling factor for mdtcp ai");
 
 static unsigned int mdtcp_debug __read_mostly = 0; 
 module_param(mdtcp_debug, uint, 0644);
-MODULE_PARM_DESC(mdtcp_debug, "enable print log");
+MODULE_PARM_DESC(mdtcp_debug, "enable debug");
 
 static unsigned int alpha_scale_den __read_mostly = 10; 
 module_param(alpha_scale_den, uint, 0644);
 MODULE_PARM_DESC(alpha_scale_den, "alpha scale den");
 
-static unsigned int alpha_scale_num __read_mostly = 20; 
+static unsigned int alpha_scale_num __read_mostly = 22; 
 module_param(alpha_scale_num, uint, 0644);
 MODULE_PARM_DESC(alpha_scale_num, "alpha scale num");
 
-static unsigned int alpha_scale __read_mostly = 10; 
+static unsigned int alpha_scale __read_mostly = 12; 
 module_param(alpha_scale, uint, 0644);
 MODULE_PARM_DESC(alpha_scale, "alpha scale");
 
 /*end mdtcp*/
 
 
-// static struct tcp_congestion_ops mdtcp_reno;
+static struct tcp_congestion_ops mdtcp_reno;
 
 static inline int mdtcp_sk_can_send(const struct sock *sk)
 {
@@ -121,11 +121,16 @@ static inline u64 mdtcp_scale(u32 val, int scale)
 	return (u64) val << scale;
 }
 
-
 static inline bool mdtcp_get_forced(const struct sock *meta_sk)
 {
 	return ((struct mdtcp *)inet_csk_ca(meta_sk))->forced_update;
 }
+
+static inline void mdtcp_set_forced(const struct sock *meta_sk, bool force)
+{
+	((struct mdtcp *)inet_csk_ca(meta_sk))->forced_update = force;
+}
+
 
 static void mdtcp_reset(const struct tcp_sock *tp, struct mdtcp *ca)
 {
@@ -140,7 +145,7 @@ static u32 mdtcp_ssthresh(struct sock *sk)
 {
 	struct mdtcp *ca = inet_csk_ca(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
-	const struct mptcp_cb *mpcb = tcp_sk(sk)->mpcb;
+	//const struct mptcp_cb *mpcb = tcp_sk(sk)->mpcb;
 	//const struct sock *sub_sk;
 
 	// struct inet_sock *inet = inet_sk(sk);
@@ -272,11 +277,6 @@ static u32 mdtcp_cwnd_undo(struct sock *sk)
 	return max(tcp_sk(sk)->snd_cwnd, ca->loss_cwnd);
 }
 
-static inline void mdtcp_set_forced(const struct sock *meta_sk, bool force)
-{
-	((struct mdtcp *)inet_csk_ca(meta_sk))->forced_update = force;
-}
-
 static void mdtcp_recalc_alpha(const struct sock *sk)
 {
 	const struct mptcp_cb *mpcb = tcp_sk(sk)->mpcb;
@@ -390,6 +390,10 @@ static void mdtcp_init(struct sock *sk)
 
 
 	/* If we do not mdtcp, behave like reno: return */
+       
+       inet_csk(sk)->icsk_ca_ops = &mdtcp_reno;
+       INET_ECN_dontxmit(sk);
+
 }
 
 
@@ -455,8 +459,9 @@ static void mdtcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		/* In "safe" area, increase. */
 		acked = tcp_slow_start(tp, acked);
 		
-                if(mpcb->cnt_established>1)
+                if(mpcb->cnt_established > 1)
                    mdtcp_recalc_alpha(sk);
+
                 if(!acked) 
                    return;
                                
@@ -539,6 +544,14 @@ static struct tcp_congestion_ops mdtcp __read_mostly = {
 	.owner		= THIS_MODULE,
 	.flags		= TCP_CONG_NEEDS_ECN,
 	.name		= "mdtcp",
+};
+
+static struct tcp_congestion_ops mdtcp_reno __read_mostly = {
+	.ssthresh	= tcp_reno_ssthresh,
+	.cong_avoid	= tcp_reno_cong_avoid,
+	.undo_cwnd	= tcp_reno_undo_cwnd,
+	.owner		= THIS_MODULE,
+	.name		= "mdtcp-reno",
 };
 
 
