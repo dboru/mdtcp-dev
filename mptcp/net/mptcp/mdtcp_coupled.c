@@ -43,12 +43,12 @@
  * We have: alpha_scale = alpha_scale_num / (alpha_scale_den)
  */
 
-static int alpha_scale_den = 10;
-static int alpha_scale_num = 22;//20
-static int alpha_scale = 12	;//10
+//static int alpha_scale_den = 10;
+//static int alpha_scale_num = 22;//20
+//static int alpha_scale = 12	;//10
 
-struct mdtcp {
-	/*mptcp parameters*/
+
+struct mdtcp {	
 	u64	alpha;
 	bool forced_update;
 	u32 acked_bytes_ecn;
@@ -61,8 +61,6 @@ struct mdtcp {
 	u32 loss_cwnd;
 	ktime_t start;
 	bool debug;
-	
-
 };
 
 /*mdtcp specifics*/
@@ -78,13 +76,25 @@ static unsigned int mdtcp_clamp_alpha_on_loss __read_mostly;
 module_param(mdtcp_clamp_alpha_on_loss, uint, 0644);
 MODULE_PARM_DESC(mdtcp_clamp_alpha_on_loss,
 		"parameter for clamping alpha on loss");
-static unsigned int mdtcp_enable_avg_alfa __read_mostly = 0; /* g = 1/2^4 */
-module_param(mdtcp_enable_avg_alfa, uint, 0644);
-MODULE_PARM_DESC(mdtcp_enable_avg_alfa, "parameter to enalbe use average congestion signals of subflows");
+static unsigned int mdtcp_ai_scale __read_mostly = 10;
+module_param(mdtcp_ai_scale, uint, 0644);
+MODULE_PARM_DESC(mdtcp_ai_scale, "scaling factor for mdtcp ai");
 
 static unsigned int mdtcp_debug __read_mostly = 0; 
 module_param(mdtcp_debug, uint, 0644);
 MODULE_PARM_DESC(mdtcp_debug, "enable print log");
+
+static unsigned int alpha_scale_den __read_mostly = 10; 
+module_param(alpha_scale_den, uint, 0644);
+MODULE_PARM_DESC(alpha_scale_den, "alpha scale den");
+
+static unsigned int alpha_scale_num __read_mostly = 20; 
+module_param(alpha_scale_num, uint, 0644);
+MODULE_PARM_DESC(alpha_scale_num, "alpha scale num");
+
+static unsigned int alpha_scale __read_mostly = 10; 
+module_param(alpha_scale, uint, 0644);
+MODULE_PARM_DESC(alpha_scale, "alpha scale");
 
 /*end mdtcp*/
 
@@ -339,7 +349,7 @@ static void mdtcp_recalc_alpha(const struct sock *sk)
 		}
 	} 
 
-	alpha = div64_u64(mdtcp_scale(1, alpha_scale_num), sum_denominator);
+	alpha = div64_u64(mdtcp_scale(10, alpha_scale_num), mdtcp_ai_scale*sum_denominator);
 
 	/*if (ntohs(inet->inet_sport) != 5001 && ca->debug) {
 		printk("ktime: %lu.%09lu mpalfa: %llu  srcip %pI4/%u dstip %pI4/%u sub %u\n",
@@ -443,12 +453,13 @@ static void mdtcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		return;
 	if (tcp_in_slow_start(tp)) {
 		/* In "safe" area, increase. */
-		tcp_slow_start(tp, acked);
-		//if(!acked) {
-                 if(mpcb->cnt_established>1)
+		acked = tcp_slow_start(tp, acked);
+		
+                if(mpcb->cnt_established>1)
                    mdtcp_recalc_alpha(sk);
+                if(!acked) 
                    return;
-               // }               
+                               
 	}
 
 	if (mdtcp_get_forced(mptcp_meta_sk(sk))) {
@@ -468,6 +479,7 @@ static void mdtcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	        /* Thus, we select here the max value.*/
 		if (snd_cwnd < tp->snd_cwnd)
 			snd_cwnd = tp->snd_cwnd;
+              
 	} else { 
 	      snd_cwnd = tp->snd_cwnd;
              

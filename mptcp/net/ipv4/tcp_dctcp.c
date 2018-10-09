@@ -209,6 +209,8 @@ static void dctcp_update_alpha(struct sock *sk, u32 flags)
 		WRITE_ONCE(ca->dctcp_alpha, alpha);
 		dctcp_reset(tp, ca);
 	}
+       
+       printk("cwnd: %u alpha: %u bytes_ecn: %u\n",tp->snd_cwnd,ca->dctcp_alpha,ca->acked_bytes_ecn);
 }
 
 static void dctcp_state(struct sock *sk, u8 new_state)
