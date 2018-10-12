@@ -70,6 +70,10 @@ static unsigned int dctcp_clamp_alpha_on_loss __read_mostly;
 module_param(dctcp_clamp_alpha_on_loss, uint, 0644);
 MODULE_PARM_DESC(dctcp_clamp_alpha_on_loss,
 		 "parameter for clamping alpha on loss");
+static unsigned int dctcp_debug __read_mostly = 0;
+module_param(dctcp_debug, uint, 0644);
+MODULE_PARM_DESC(dctcp_debug,"enable DCTCP debug");
+
 
 static struct tcp_congestion_ops dctcp_reno;
 
@@ -209,8 +213,9 @@ static void dctcp_update_alpha(struct sock *sk, u32 flags)
 		WRITE_ONCE(ca->dctcp_alpha, alpha);
 		dctcp_reset(tp, ca);
 	}
-       
-       printk("cwnd: %u alpha: %u bytes_ecn: %u\n",tp->snd_cwnd,ca->dctcp_alpha,ca->acked_bytes_ecn);
+
+       if (dctcp_debug)
+          printk("cwnd: %u dctcp-alpha: %u bytes_ecn: %u\n",tp->snd_cwnd,ca->dctcp_alpha,ca->acked_bytes_ecn);
 }
 
 static void dctcp_state(struct sock *sk, u8 new_state)
