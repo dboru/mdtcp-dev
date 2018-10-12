@@ -256,13 +256,14 @@ static void mdtcp_update_alpha(struct sock *sk, u32 flags)
 		 * as a temporary variable in prior operations.
 		 */
 		WRITE_ONCE(ca->mdtcp_alpha, alpha);
+               
+                if (mpcb && mdtcp_debug)
+                    printk("cwnd: %u dctcp-alpha: %u bytes_ecn: %u pi: %d \n",tp->snd_cwnd,ca->mdtcp_alpha,ca->acked_bytes_ecn,tp->mptcp->path_index);
+
 		mdtcp_reset(tp, ca);
 	}
      
-       if (mpcb && mdtcp_debug)
-          printk("cwnd: %u dctcp-alpha: %u bytes_ecn: %u pi: %d \n",tp->snd_cwnd,ca->mdtcp_alpha,ca->acked_bytes_ecn,tp->mptcp->path_index);
-
-
+       
       #if 0 
 	
        if (ntohs(inet->inet_sport) != 5001 && mdtcp_debug) {

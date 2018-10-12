@@ -210,12 +210,15 @@ static void dctcp_update_alpha(struct sock *sk, u32 flags)
 		 * synchro, so we ask compiler to not use dctcp_alpha
 		 * as a temporary variable in prior operations.
 		 */
-		WRITE_ONCE(ca->dctcp_alpha, alpha);
-		dctcp_reset(tp, ca);
+		
+             
+              WRITE_ONCE(ca->dctcp_alpha, alpha);
+	      if (dctcp_debug)
+                  printk("cwnd: %u dctcp-alpha: %u bytes_ecn: %u\n",tp->snd_cwnd,ca->dctcp_alpha,ca->acked_bytes_ecn);
+              
+              dctcp_reset(tp, ca);
 	}
 
-       if (dctcp_debug)
-          printk("cwnd: %u dctcp-alpha: %u bytes_ecn: %u\n",tp->snd_cwnd,ca->dctcp_alpha,ca->acked_bytes_ecn);
 }
 
 static void dctcp_state(struct sock *sk, u8 new_state)
