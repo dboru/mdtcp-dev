@@ -77,9 +77,13 @@ static unsigned int mdtcp_clamp_alpha_on_loss __read_mostly;
 module_param(mdtcp_clamp_alpha_on_loss, uint, 0644);
 MODULE_PARM_DESC(mdtcp_clamp_alpha_on_loss,
 		"parameter for clamping alpha on loss");
-static unsigned int mdtcp_ai_scale __read_mostly = 10;
-module_param(mdtcp_ai_scale, uint, 0644);
-MODULE_PARM_DESC(mdtcp_ai_scale, "scaling factor for mdtcp ai");
+static unsigned int mdtcp_ai_scale_den __read_mostly = 10;
+module_param(mdtcp_ai_scale_den, uint, 0644);
+MODULE_PARM_DESC(mdtcp_ai_scale_den, "scaling factor for mdtcp ai den");
+
+static unsigned int mdtcp_ai_scale_num __read_mostly = 10;
+module_param(mdtcp_ai_scale_num, uint, 0644);
+MODULE_PARM_DESC(mdtcp_ai_scale_num, "scaling factor for mdtcp ai num");
 
 static unsigned int mdtcp_debug __read_mostly = 0; 
 module_param(mdtcp_debug, uint, 0644);
@@ -350,7 +354,7 @@ static void mdtcp_recalc_alpha(const struct sock *sk)
 		}
 	} 
         
-	alpha = div64_u64(mdtcp_scale(1, alpha_scale_num), sum_denominator);
+	alpha = div64_u64(mdtcp_scale(mdtcp_ai_scale_num, alpha_scale_num), mdtcp_ai_scale_den*sum_denominator);
         if(mdtcp_debug)
            printk("mp-alpha: %llu  sum_den: %llu \n",alpha, sum_denominator);
 	
@@ -453,9 +457,9 @@ static void mdtcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		return;
 	if (tcp_in_slow_start(tp)) {
 		/* In "safe" area, increase. */
-		 tcp_slow_start(tp, acked);
+		tcp_slow_start(tp, acked);
 		
-                //if(mpcb->cnt_established > 1)
+                if(mpcb->cnt_established > 1)
                    mdtcp_recalc_alpha(sk);
 
                 //if(!acked) 
@@ -495,15 +499,15 @@ static void mdtcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
              
             }
           
-     #if 0
+     //#if 0
      old_cwnd = tp->snd_cwnd;
      mdtcp_cong_avoid_ai(tp, snd_cwnd, acked);
 
      if (old_cwnd < tp->snd_cwnd && mpcb->cnt_established > 1)
     	   mdtcp_recalc_alpha(sk);
-    #endif 
+    //#endif 
 
- // #if 0 
+  #if 0 
     if (tp->snd_cwnd_cnt >= snd_cwnd) {
 		if (tp->snd_cwnd < tp->snd_cwnd_clamp) {
 			tp->snd_cwnd++;
@@ -514,7 +518,7 @@ static void mdtcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	} else {
 		tp->snd_cwnd_cnt++;
 	}
- // #endif
+  #endif
      	
   }
  
