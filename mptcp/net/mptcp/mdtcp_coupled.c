@@ -42,11 +42,11 @@
  *
  * We have: alpha_scale = alpha_scale_num / (alpha_scale_den)
  */
-#if 0
+//#if 0
 static int alpha_scale_den = 10;
 static int alpha_scale_num = 20;//20
 static int alpha_scale = 10	;//10
-#endif
+//#endif
 
 
 struct mdtcp {	
@@ -85,7 +85,7 @@ static unsigned int mdtcp_debug __read_mostly = 0;
 module_param(mdtcp_debug, uint, 0644);
 MODULE_PARM_DESC(mdtcp_debug, "enable debug");
 
-
+#if 0
 static unsigned int alpha_scale_den __read_mostly = 10; 
 module_param(alpha_scale_den, uint, 0644);
 MODULE_PARM_DESC(alpha_scale_den, "alpha scale den");
@@ -97,6 +97,7 @@ MODULE_PARM_DESC(alpha_scale_num, "alpha scale num");
 static unsigned int alpha_scale __read_mostly = 12; 
 module_param(alpha_scale, uint, 0644);
 MODULE_PARM_DESC(alpha_scale, "alpha scale");
+#endif 
 
 /*end mdtcp*/
 
@@ -290,7 +291,7 @@ static void mdtcp_recalc_alpha(const struct sock *sk)
 	const struct mptcp_cb *mpcb = tcp_sk(sk)->mpcb;
 	const struct sock *sub_sk;
 	int min_rtt = 1, can_send = 0;
-        //,best_cwnd = 0;
+       
 	u64  sum_denominator = 0, alpha = 1;
 
        //u64 max_numerator = 0, sum_denominator = 0, alpha = 1;
@@ -310,10 +311,9 @@ static void mdtcp_recalc_alpha(const struct sock *sk)
 	/* Find the max numerator of the alpha-calculation */
 	mptcp_for_each_sk(mpcb, sub_sk) {
 		struct tcp_sock *sub_tp = tcp_sk(sub_sk);
-		//u64 tmp;
+	
                 if (!mdtcp_sk_can_send(sub_sk))
 		   continue;
-
 		can_send++;
               
               /* We need to look for the path, that provides the minimum RTT*/
@@ -453,12 +453,12 @@ static void mdtcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		return;
 	if (tcp_in_slow_start(tp)) {
 		/* In "safe" area, increase. */
-		acked = tcp_slow_start(tp, acked);
+		 tcp_slow_start(tp, acked);
 		
-                if(mpcb->cnt_established > 1)
+                //if(mpcb->cnt_established > 1)
                    mdtcp_recalc_alpha(sk);
 
-                if(!acked) 
+                //if(!acked) 
                    return;
                                
 	}
@@ -495,15 +495,15 @@ static void mdtcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
              
             }
           
-
+     #if 0
      old_cwnd = tp->snd_cwnd;
      mdtcp_cong_avoid_ai(tp, snd_cwnd, acked);
 
      if (old_cwnd < tp->snd_cwnd && mpcb->cnt_established > 1)
     	   mdtcp_recalc_alpha(sk);
-    
+    #endif 
 
-  #if 0 
+ // #if 0 
     if (tp->snd_cwnd_cnt >= snd_cwnd) {
 		if (tp->snd_cwnd < tp->snd_cwnd_clamp) {
 			tp->snd_cwnd++;
@@ -514,7 +514,7 @@ static void mdtcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	} else {
 		tp->snd_cwnd_cnt++;
 	}
-  #endif
+ // #endif
      	
   }
  
