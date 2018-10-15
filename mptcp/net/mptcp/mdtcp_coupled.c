@@ -42,12 +42,10 @@
  *
  * We have: alpha_scale = alpha_scale_num / (alpha_scale_den)
  */
-//#if 0
-static int alpha_scale_den = 10;
-static int alpha_scale_num = 20;//20
-static int alpha_scale = 10	;//10
-//#endif
 
+static int alpha_scale_den = 10;
+static int alpha_scale_num = 20;
+static int alpha_scale =      10;
 
 struct mdtcp {	
 	u64	alpha;
@@ -77,11 +75,11 @@ static unsigned int mdtcp_clamp_alpha_on_loss __read_mostly;
 module_param(mdtcp_clamp_alpha_on_loss, uint, 0644);
 MODULE_PARM_DESC(mdtcp_clamp_alpha_on_loss,
 		"parameter for clamping alpha on loss");
-static unsigned int mdtcp_ai_scale_den __read_mostly = 10;
+static unsigned int mdtcp_ai_scale_den __read_mostly = 1;
 module_param(mdtcp_ai_scale_den, uint, 0644);
 MODULE_PARM_DESC(mdtcp_ai_scale_den, "scaling factor for mdtcp ai den");
 
-static unsigned int mdtcp_ai_scale_num __read_mostly = 10;
+static unsigned int mdtcp_ai_scale_num __read_mostly = 1;
 module_param(mdtcp_ai_scale_num, uint, 0644);
 MODULE_PARM_DESC(mdtcp_ai_scale_num, "scaling factor for mdtcp ai num");
 
@@ -152,18 +150,9 @@ static u32 mdtcp_ssthresh(struct sock *sk)
 {
 	struct mdtcp *ca = inet_csk_ca(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
-	//const struct mptcp_cb *mpcb = tcp_sk(sk)->mpcb;
-	//const struct sock *sub_sk;
-
-	// struct inet_sock *inet = inet_sk(sk);
-	// struct timespec tv = ktime_to_timespec(ktime_sub(ktime_get(), ca->start));
-
 
 	ca->loss_cwnd = tp->snd_cwnd;
 
-         //if (mpcb && mpcb->cnt_established > 1) {
-        //	return max(tp->snd_cwnd - ((3*tp->snd_cwnd * ca->mdtcp_alpha/2) >> 11U), 2U);
-	//}	
 	return max(tp->snd_cwnd - ((tp->snd_cwnd * ca->mdtcp_alpha) >> 11U), 2U);
 }
 
@@ -324,12 +313,22 @@ static void mdtcp_recalc_alpha(const struct sock *sk)
 
 		if (min_rtt == 1 || sub_tp->srtt_us < min_rtt)
 			min_rtt = sub_tp->srtt_us;
+
+               sum_denominator += div_u64(mdtcp_scale(sub_tp->snd_cwnd, alpha_scale_den), sub_tp->srtt_us);
+               if(mdtcp_debug)
+                printk("min_rtt: %u cwnd: %u sub_rtt :%u sum_den: %llu pi: %d \n", min_rtt>>3, sub_tp->snd_cwnd, sub_tp->srtt_us>>3, sum_denominator,sub_tp->mptcp->path_index);
+
+
+
 	}
 
 	/* No subflow is able to send - we don't care anymore */
 	if (unlikely(!can_send))
 		goto exit;
 
+        sum_denominator *= min_rtt;
+
+      #if 0
 	/* Calculate the denominator */
 	mptcp_for_each_sk(mpcb, sub_sk) {
 		struct tcp_sock *sub_tp = tcp_sk(sub_sk);
@@ -341,7 +340,9 @@ static void mdtcp_recalc_alpha(const struct sock *sk)
                 printk("min_rtt: %u cwnd: %u sub_rtt :%u sum_den: %llu pi: %d \n", min_rtt>>3, sub_tp->snd_cwnd, sub_tp->srtt_us>>3, sum_denominator,sub_tp->mptcp->path_index);
 
 	}
-       
+
+       #endif 
+
 	if (unlikely(!sum_denominator)) {
 		pr_err("%s: sum_denominator == 0, cnt_established:%d\n",
 				__func__, mpcb->cnt_established);
@@ -355,7 +356,8 @@ static void mdtcp_recalc_alpha(const struct sock *sk)
 	} 
         
 	alpha = div64_u64(mdtcp_scale(mdtcp_ai_scale_num, alpha_scale_num), mdtcp_ai_scale_den*sum_denominator);
-        if(mdtcp_debug)
+     
+   if(mdtcp_debug)
            printk("mp-alpha: %llu  sum_den: %llu \n",alpha, sum_denominator);
 	
         if (unlikely(!alpha))
@@ -457,12 +459,12 @@ static void mdtcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		return;
 	if (tcp_in_slow_start(tp)) {
 		/* In "safe" area, increase. */
-		tcp_slow_start(tp, acked);
+	       acked = tcp_slow_start(tp, acked);
 		
                 if(mpcb->cnt_established > 1)
                    mdtcp_recalc_alpha(sk);
 
-                //if(!acked) 
+                if(!acked) 
                    return;
                                
 	}
